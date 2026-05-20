@@ -19,6 +19,7 @@ def make_dir(dir):
 
 def run(func, config):
     if config.setup.run_type == "normal":
+        torch.cuda.set_device(0) #####
         config.setup.local_rank = 0
         config.setup.global_rank = 0
         config.setup.global_size = config.setup.n_nodes * config.setup.n_gpus_per_node
@@ -50,11 +51,12 @@ def run(func, config):
         for p in processes:
             p.join()
     elif config.setup.run_type == "torchrun":
-        dist.init_process_group("nccl")
+        #dist.init_process_group("nccl")
         config.setup.local_rank = int(os.environ["LOCAL_RANK"])
         config.model.local_rank = config.setup.local_rank
         config.setup.global_rank = int(os.environ["RANK"])
         config.model.global_rank = config.setup.global_rank
+        dist.init_process_group("nccl")
         config.setup.global_size = dist.get_world_size()
         config.model.global_size = config.setup.global_size
         config.model.fid_stats = config.sensitive_data.fid_stats

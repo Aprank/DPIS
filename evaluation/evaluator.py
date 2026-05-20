@@ -97,10 +97,10 @@ class Evaluator(object):
         # Calculate visual metrics: FID, Inception Score, FLD, precision, recall, and ImageReward.
         fid, is_mean, fld, p, r, ir = self.visual_metric(synthetic_images, synthetic_labels, sensitive_train_loader, sensitive_test_loader)
         logging.info("The FID of synthetic images is {}".format(fid))
-        logging.info("The Inception Score of synthetic images is {}".format(is_mean))
-        logging.info("The Precision and Recall of synthetic images is {} and {}".format(p, r))
-        logging.info("The FLD of synthetic images is {}".format(fld))
-        logging.info("The ImageReward of synthetic images is {}".format(ir))
+        #logging.info("The Inception Score of synthetic images is {}".format(is_mean))
+        #logging.info("The Precision and Recall of synthetic images is {} and {}".format(p, r))
+        #logging.info("The FLD of synthetic images is {}".format(fld))
+        #logging.info("The ImageReward of synthetic images is {}".format(ir))
 
     def eval_fidelity(self, synthetic_images, synthetic_labels, sensitive_train_loader, sensitive_val_loader, sensitive_test_loader):
 
@@ -118,10 +118,10 @@ class Evaluator(object):
         
         fid, is_mean, fld, p, r, ir = self.visual_metric(synthetic_images, synthetic_labels, sensitive_train_loader, sensitive_test_loader)
         logging.info("The FID of synthetic images is {}".format(fid))
-        logging.info("The Inception Score of synthetic images is {}".format(is_mean))
-        logging.info("The Precision and Recall of synthetic images is {} and {}".format(p, r))
-        logging.info("The FLD of synthetic images is {}".format(fld))
-        logging.info("The ImageReward of synthetic images is {}".format(ir))
+        #logging.info("The Inception Score of synthetic images is {}".format(is_mean))
+        #logging.info("The Precision and Recall of synthetic images is {} and {}".format(p, r))
+        #logging.info("The FLD of synthetic images is {}".format(fld))
+        #logging.info("The ImageReward of synthetic images is {}".format(ir))
 
         return fid, is_mean, p, r, fld, ir
     
@@ -175,6 +175,7 @@ class Evaluator(object):
         # Determine the number of unique classes in the synthetic labels.
         num_classes = len(set(synthetic_labels))
 
+        '''
         # Load the image reward model.
         rm_model = RM.load("ImageReward-v1.0")
         ir = 0
@@ -194,13 +195,19 @@ class Evaluator(object):
                 ir += np.sum(score)
         
         ir /= len(synthetic_images)
-
-        is_mean, _ = compute_inception_score_from_logits(gen_logit)
+        '''
+        ir = 0
+        #is_mean, _ = compute_inception_score_from_logits(gen_logit)
         fid = FID().compute_metric(train_feat, None, gen_feat)
-        fld = FLD(eval_feat="train").compute_metric(train_feat, test_feat, gen_feat)
-        p = PrecisionRecall(mode="Precision", num_neighbors=4).compute_metric(train_feat, None, gen_feat) # Default precision
-        r = PrecisionRecall(mode="Recall", num_neighbors=4).compute_metric(train_feat, None, gen_feat)
-
+        
+        #fld = FLD(eval_feat="train").compute_metric(train_feat, test_feat, gen_feat)
+        #p = PrecisionRecall(mode="Precision", num_neighbors=4).compute_metric(train_feat, None, gen_feat) # Default precision
+        #r = PrecisionRecall(mode="Recall", num_neighbors=4).compute_metric(train_feat, None, gen_feat)
+        
+        is_mean = 0
+        fld = 0
+        p = 0
+        r = 0
         return fid, is_mean, fld, p, r, ir
 
     def pr_varying_k(self, synthetic_images, synthetic_labels, sensitive_train_loader, sensitive_val_loader, sensitive_test_loader):

@@ -19,7 +19,7 @@ from models.DP_GAN.discriminator import Discriminator
 import importlib
 opacus = importlib.import_module('opacus')
 
-from opacus import PrivacyEngine
+from opacus.privacy_engine import PrivacyEngine#########
 from opacus.utils.batch_memory_manager import BatchMemoryManager
 from opacus.distributed import DifferentiallyPrivateDistributedDataParallel as DPDDP
 

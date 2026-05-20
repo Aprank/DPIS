@@ -55,3 +55,8 @@ fidelity.sh
 utility.sh
 
 *slurm*
+
+# model checkpoints
+*.ckpt
+*.pth
+*.pt
