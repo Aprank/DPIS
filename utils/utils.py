@@ -56,7 +56,7 @@ def run(func, config):
         config.model.local_rank = config.setup.local_rank
         config.setup.global_rank = int(os.environ["RANK"])
         config.model.global_rank = config.setup.global_rank
-        dist.init_process_group("nccl")
+        dist.init_process_group("gloo")
         config.setup.global_size = dist.get_world_size()
         config.model.global_size = config.setup.global_size
         config.model.fid_stats = config.sensitive_data.fid_stats
@@ -69,7 +69,7 @@ def setup(config, fn):
     os.environ['MASTER_PORT'] = '%d' % config.setup.master_port
     os.environ['OMP_NUM_THREADS'] = '%d' % config.setup.omp_n_threads
     torch.cuda.set_device(config.setup.local_rank)
-    dist.init_process_group(backend='nccl',
+    dist.init_process_group(backend='gloo',
                             init_method='env://',
                             rank=config.setup.global_rank,
                             world_size=config.setup.global_size)
@@ -128,24 +128,14 @@ def parse_config(opt, unknown):
         config.sensitive_data.train_path = os.path.join("dataset", opt.data_name, "train_32.zip")
         config.sensitive_data.test_path = os.path.join("dataset", opt.data_name, "test_32.zip")
         config.sensitive_data.fid_stats = os.path.join("dataset", opt.data_name, "fid_stats_32.npz")
-    if opt.method in ["PE", "PE-SD"]:
-        config.train.tmp_folder = config.sensitive_data.name
-        config.train.private_num_classes = config.sensitive_data.n_classes
-        return config
     config.model.private_num_classes = config.sensitive_data.n_classes
     config.model.public_num_classes = config.public_data.n_classes
-    if config.public_data.name is None or opt.method in ['PrivImage', 'DP-FETA', 'DP-FETA-Pro', 'DPDM']:
+    if config.public_data.name is None or opt.method in ['DPIS-SQ', 'DPIS-MI', 'DPDM']:
         config.model.public_num_classes = config.model.private_num_classes
-    if opt.method == 'DP-FETA-Pro':
-        config.train.freq.log_dir = config.setup.workdir + "/train_freq"
-        config.gen.freq.log_dir = config.setup.workdir + "/gen_freq"
-        config.gen.freq.n_classes = config.sensitive_data.n_classes
-        config.public_data.central.sigma = config.train.sigma_time
-        config.train.freq.dp.sigma = config.train.sigma_freq
     if 'mode' in config.pretrain:
         if config.pretrain.mode == 'time':
-            if opt.method != 'DP-FETA':
-                aux_config_path = config_path.replace(opt.method, 'DP-FETA')
+            if opt.method != 'DPIS-MI':
+                aux_config_path = config_path.replace(opt.method, 'DPIS-MI')
                 aux_configs = [OmegaConf.load(aux_config_path)]
                 aux_config = OmegaConf.merge(*aux_configs, cli)
                 config['public_data']['central'] = aux_config['public_data']['central']
@@ -154,27 +144,4 @@ def parse_config(opt, unknown):
                 config['pretrain']['n_epochs_time'] = aux_config['pretrain']['n_epochs_time']
                 config['train']['sigma_time'] = aux_config['train']['sigma_time']
                 config.public_data.central.sigma = config.train.sigma_time
-        else:
-            if opt.method != 'DP-FETA-Pro':
-                aux_config_path = config_path.replace(opt.method, 'DP-FETA-Pro')
-                aux_configs = [OmegaConf.load(aux_config_path)]
-                aux_config = OmegaConf.merge(*aux_configs, cli)
-                config['public_data']['central'] = aux_config['public_data']['central']
-                config['model']['freq'] = aux_config['model']['freq']
-                config['pretrain']['mode'] = aux_config['pretrain']['mode']
-                config['pretrain']['batch_size_time'] = aux_config['pretrain']['batch_size_time']
-                config['pretrain']['n_epochs_time'] = aux_config['pretrain']['n_epochs_time']
-                config['pretrain']['batch_size_freq'] = aux_config['pretrain']['batch_size_freq']
-                config['pretrain']['n_epochs_freq'] = aux_config['pretrain']['n_epochs_freq']
-                config['train']['freq'] = aux_config['train']['freq']
-                config['train']['sigma_freq'] = aux_config['train']['sigma_freq']
-                config['train']['sigma_time'] = aux_config['train']['sigma_time']
-                config['train']['sigma_sensitivity_ratio'] = aux_config['train']['sigma_sensitivity_ratio']
-                config['gen']['freq'] = aux_config['gen']['freq']
-
-                config.train.freq.log_dir = config.setup.workdir + "/train_freq"
-                config.gen.freq.log_dir = config.setup.workdir + "/gen_freq"
-                config.gen.freq.n_classes = config.sensitive_data.n_classes
-                config.public_data.central.sigma = config.train.sigma_time
-                config.train.freq.dp.sigma = config.train.sigma_freq
     return config

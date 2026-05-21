@@ -12,10 +12,8 @@ import cv2
 
 from data.stylegan3.dataset import ImageFolderDataset
 from data.SpecificImagenet import SpecificClassImagenet
-from data.SpecificPlaces365 import SpecificClassPlaces365
-from data.SpecificEMNIST import SpecificClassEMNIST
-from models.PrivImage import resnet
-from models.PrivImage.classifer_trainer import train_classifier
+from models.DPIS_SQ import resnet
+from models.DPIS_SQ.classifer_trainer import train_classifier
 
 import random
 class random_aug(object):
@@ -304,19 +302,6 @@ def load_data(config):
                 specific_class, config = semantic_query(sensitive_train_loader, config)
         if config.public_data.name == "imagenet":
             public_train_set = SpecificClassImagenet(root=config.public_data.train_path, specific_class=specific_class, transform=trans, split="train")
-        elif config.public_data.name == "places365":
-            download = (not os.path.exists(os.path.join(config.public_data.train_path, "data_256_standard")))
-            public_train_set_ = torchvision.datasets.Places365(root=config.public_data.train_path, small=True, download=download, transform=trans)
-            if specific_class is None:
-                public_train_set = public_train_set_
-            else:
-                public_train_set = SpecificClassPlaces365(public_train_set_, specific_class)
-        elif config.public_data.name == "emnist":
-            public_train_set_ = torchvision.datasets.EMNIST(root=config.public_data.train_path, split="letters", train=True, download=True, transform=trans)
-            if specific_class is None:
-                public_train_set = public_train_set_
-            else:
-                public_train_set = SpecificClassEMNIST(public_train_set_, specific_class)
         elif "central" in config.public_data.name:
             if 'central' in config.public_data:
                 public_train_set = CentralDataset(sensitive_train_loader.dataset, num_classes=config.sensitive_data.n_classes, c_type=config.public_data.name.split('_')[-1], **config.public_data.central)

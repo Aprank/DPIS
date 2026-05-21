@@ -296,7 +296,7 @@ class Evaluator(object):
                 n_splits = 64
             else:
                 n_splits = 1
-            max_epoch = 50
+            max_epoch = 10 #50
             if model_name == "wrn":
                 model = WideResNet(in_c=synthetic_images.shape[1], img_size=synthetic_images.shape[2], num_classes=num_classes, dropRate=0.3)
             elif model_name == "resnet":
