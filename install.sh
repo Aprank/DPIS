@@ -9,9 +9,6 @@ pip install torch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 --index-url https
 conda install -y -c pytorch -c nvidia faiss-gpu=1.8.0;
 pip install -r requirements.txt;
 cd opacus; pip install -e .; cd ..
-cd models/PE; pip install improved-diffusion@git+https://github.com/fjxmlzn/improved-diffusion.git@8f6677c3c47d1c1ad2e22ad2603eaec4cc639805; cd ..; cd ..
-cd models/PE; pip install git+https://github.com/openai/guided-diffusion.git; cd ..; cd ..
-cd models/DP_LORA/peft; pip install -e .; cd ..; cd ..; cd ..
 pip install transformers==4.27.4
 pip uninstall numpy -y
 pip install numpy==1.26.4
