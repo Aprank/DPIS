@@ -56,6 +56,8 @@ utility.sh
 
 *slurm*
 
+.vscode/
+
 # model checkpoints
 *.ckpt
 *.pth
