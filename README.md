@@ -2,44 +2,39 @@
 
 Differentially Private Synthetic Image Generation Benchmark.
 
-A unified benchmark for training and evaluating differentially private image synthesizers, supporting 12+ methods across multiple datasets.
+## Methods
 
-## Supported Methods
-
-| Method | `--method` | Description |
+| `--method` | Description | Config Dir |
 |---|---|---|
-| DP-MERF | `DP-MERF` | Random Fourier Features |
-| DP-NTK | `DP-NTK` | Neural Tangent Kernel |
-| DP-Kernel | `DP-Kernel` | Kernel-based |
-| GS-WGAN | `GS-WGAN` | Wasserstein GAN with GS |
-| DPGAN | `DPGAN` | DP Generative Adversarial Network |
-| DPDM | `DPDM` | DP Diffusion Model |
-| PDP-Diffusion | `PDP-Diffusion` | Pre-trained DP Diffusion |
-| DP-LDM-SD | `DP-LDM-SD` | Latent Diffusion with Stable Diffusion |
-| DP-LDM | `DP-LDM` | DP Latent Diffusion Model |
-| DP-LoRA | `DP-LORA` | DP Low-Rank Adaptation |
-| PE | `PE` | Private Ensemble |
-| **DPIS-SQ** | `DPIS-SQ` | DP Image Synthesis with Semantic Query |
-| **DPIS-MI** | `DPIS-MI` | DP Image Synthesis with Mode Images |
+| `DP-MERF` | Random Fourier Features | `configs/DP-MERF/` |
+| `DP-Kernel` | Kernel-based | `configs/DP-Kernel/` |
+| `DPGAN` | DP Generative Adversarial Network | `configs/DPGAN/` |
+| `DPDM` | DP Diffusion Model | `configs/DPDM/` |
+| `PDP-Diffusion` | Pre-trained DP Diffusion | `configs/PDP-Diffusion/` |
+| `DPIS-SQ` | DP Image Synthesis with Semantic Query | `configs/DPIS-SQ/` |
+| `DPIS-MI` | DP Image Synthesis with Mode Images | `configs/DPIS-MI/` |
+
+DPIS-SQ and DPIS-MI are the primary methods; the rest are baselines with varying levels of code completeness.
 
 ## Datasets
 
-| Dataset | Resolution | Classes | `--data_name` |
-|---|---|---|---|
-| MNIST | 28 | 10 | `mnist_28` |
-| Fashion-MNIST | 28 | 10 | `fmnist_28` |
-| CIFAR-10 | 32 | 10 | `cifar10_32` |
-| CIFAR-100 | 32 | 100 | `cifar100_32` |
-| EuroSAT | 32 | 10 | `eurosat_32` |
-| CelebA (Male) | 32/64/128 | 2 | `celeba_male_32` |
-| Camelyon17 | 32 | 2 | `camelyon_32` |
+All preprocessed data stored as zip archives under `dataset/`:
+
+| Dataset | `--data_name` | Resolution | Channels | Classes | Preprocessed |
+|---|---|---|---|---|---|
+| MNIST | `mnist_28` | 28 | 1 | 10 | train/test + fid_stats |
+| Fashion-MNIST | `fmnist_28` | 28 | 1 | 10 | train/test + fid_stats |
+| CIFAR-10 | `cifar10_32` | 32 | 3 | 10 | train/test + fid_stats |
+| CIFAR-100 | `cifar100_32` | 32 | 3 | 100 | train/test + fid_stats |
+| EuroSAT | `eurosat_32` | 32 | 3 | 10 | train only |
+| CelebA (Male) | `celeba_male_32/64/128` | 32/64/128 | 3 | 2 | train/test + fid_stats |
+| Camelyon17 | `camelyon_32` | 32 | 3 | 2 | train/test/val + fid_stats |
+
+Each dataset directory contains `train_<res>.zip`, `test_<res>.zip`, and `fid_stats_<res>.npz`.
 
 ## Installation
 
 ```bash
-# Clone and set up conda environment
-git clone <repo-url>
-cd DPImageBench
 conda create -n dpimagebench python=3.9
 conda activate dpimagebench
 bash install.sh
@@ -47,181 +42,195 @@ bash install.sh
 
 ## Data Preparation
 
-Preprocess datasets into the internal zip format:
-
 ```bash
+# Preprocess datasets into zip format + compute FID stats
 python data/preprocess_dataset.py \
-    --data_name mnist fmnist cifar10 \
+    --data_name mnist fmnist cifar10 cifar100 \
     --data_dir ./dataset
+
+# Preprocess ImageNet to target resolution
+python data/process_imagenet.py \
+    --data_dir /path/to/ImageNet_ILSVRC2012/train \
+    --new_dir dataset/imagenet/imagenet_32 \
+    --image_size 32
 ```
 
-This downloads raw data, resizes images, packs them into `train_<res>.zip` / `test_<res>.zip`, and computes `fid_stats_<res>.npz`.
-
-For DPIS-SQ / DPIS-MI, ImageNet pretrained models are required:
+## Quick Start
 
 ```bash
-# Place these files in models/pretrained_models/
-# - imagenet_classifier_ckpt.pth   (ResNet50 classifier)
-# - imagenet64_cond_270M_250K.pt   (EDM diffusion checkpoint)
+# Minimal demo: DPIS-SQ then DPIS-MI on MNIST, ε=1.0, 1 epoch each
+bash scripts/demo_dpis.sh
 ```
 
 ## Usage
 
-### Quick Demo
-
 ```bash
-bash scripts/demo_dpis.sh
-```
-
-Runs both DPIS-SQ and DPIS-MI on MNIST-28 with ε=1.0 (minimal epochs). Edit `DEMO_PARAMS` in the script to adjust speed vs. quality.
-
-### Training
-
-```bash
-# Single method
+# Standard invocation
 CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 \
     run.py setup.run_type=torchrun \
-    -m DPIS-SQ -dn mnist_28 -e 10.0 -ed my_experiment
-
-# With custom parameters
-CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 \
-    run.py setup.run_type=torchrun \
-    pretrain.n_epochs=3200 train.n_epochs=150 \
-    -m DPIS-SQ -dn cifar10_32 -e 10.0 -ed full_train
+    -m DPIS-SQ -dn mnist_28 -e 10.0 -ed my_run
 ```
 
-### Key Parameters
+### CLI Arguments
 
-| Parameter | Default | Description |
+| Flag | Default | Description |
 |---|---|---|
 | `-m`, `--method` | `DP-LDM` | Method name |
 | `-dn`, `--data_name` | `cifar10_32` | Dataset |
 | `-e`, `--epsilon` | `10.0` | Privacy budget |
-| `-ed`, `--exp_description` | `""` | Experiment tag |
-| `pretrain.n_epochs` | 3200 | Pretrain epochs |
-| `train.n_epochs` | 150 | DP-SGD epochs |
-| `train.dp.max_grad_norm` | 0.001 | Gradient clipping norm |
-| `gen.data_num` | 60000 | Number of synthetic images to generate |
+| `-ed`, `--exp_description` | `""` | Experiment tag appended to output dir |
 
-All config YAML keys can be overridden via CLI (OmegaConf dotlist format).
+### Config Overrides
 
-### Resume Training
+All YAML keys can be overridden via CLI using OmegaConf dotlist syntax:
+
+```bash
+python run.py -m DPIS-SQ -dn mnist_28 -e 10.0 \
+    pretrain.n_epochs=100 \
+    train.n_epochs=50 \
+    train.dp.max_grad_norm=0.01 \
+    gen.data_num=10000
+```
+
+### Resume
 
 ```bash
 python run.py -re <experiment_dir_name> -m DPIS-SQ -dn mnist_28 -e 10.0
 ```
 
-## Pipeline
 
-Each training run executes 6 phases:
 
-```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│ 1. Config    │───▶│ 2. Data      │───▶│ 3. Pretrain  │
-│    Parsing   │    │    Loading   │    │ (public data)│
-└──────────────┘    └──────────────┘    └──────────────┘
-                                                │
-┌──────────────┐    ┌──────────────┐    ┌───────▼──────┐
-│ 6. Evaluate  │◀───│ 5. Generate  │◀───│ 4. DP-SGD    │
-│ (Acc + FID)  │    │ (syn images) │    │    Train     │
-└──────────────┘    └──────────────┘    └──────────────┘
-```
+### Phase Details
 
-### Method Comparison
+**1. Config Parse** — Loads `configs/<method>/<dataset>_eps<X>.yaml`, merges CLI overrides.
 
-| Phase | Standard Methods | DPIS-SQ | DPIS-MI |
-|---|---|---|---|
-| Public data | None or full dataset | Semantically-filtered ImageNet | Central (mean/mode) images |
-| Pretrain | None | Diffusion on public subset | Diffusion on central images |
-| DP Training | DP-SGD from scratch | DP-SGD fine-tuning | DP-SGD fine-tuning |
+**2. Data Load** — Loads sensitive data from zip archives. For DPIS-SQ/DPIS-MI, also loads public data:
 
-### DPIS-SQ Semantic Query
+- **DPIS-SQ**: Runs semantic query — ResNet50 classifier maps sensitive images to semantically related ImageNet classes (50 out of 1000), filtered via `SpecificImagenet`. Labels are remapped from ImageNet IDs to contiguous 0-9.
+- **DPIS-MI**: Creates differentially private central (mean/mode) images per class as public data.
 
-DPIS-SQ uses a pretrained ResNet50 to bridge the semantic gap between sensitive and public data:
+**3. Pretrain** — Standard diffusion training on public data (DDP, Adam, EDM loss, EMA). No differential privacy.
 
-```
-MNIST image → ResNet50(ImageNet) → Top-5 ImageNet classes
-                                              ↓
-                        Gaussian noise (σ=50) added to histogram
-                                              ↓
-                        50 unique ImageNet classes selected
-                        (5 per MNIST digit, no overlap)
-```
+**4. DP-SGD Train** — Fine-tunes on sensitive data with differential privacy:
 
-### DPIS-MI Central Images
-
-DPIS-MI creates differentially private "prototype" images from sensitive data:
-
-- **Mean mode**: DP mean image per class, downsampled + noisy
-- **Mode mode**: DP histogram mode per pixel, per class
-
-These serve as a privacy-preserving bridge for pretraining.
-
-## Evaluation Metrics
-
-After generation, the evaluator computes:
-
-| Metric | Description |
+| Component | Role |
 |---|---|
-| **Accuracy** | Train ResNet/WRN/ResNeXt on synthetic images, test on real data |
-| **FID** | Fréchet Inception Distance (InceptionV3 pool3 features) |
+| `DPDDP` | Distributed data parallel with per-sample gradient hooks |
+| `PrivacyEngine` | Gradient clipping (max_grad_norm) + Gaussian noise + RDP accounting |
+| `BatchMemoryManager` | Virtual large batch via gradient accumulation (n_splits) |
+| `noise_multiplicity` | Multiple noise levels per image (32× for better score matching) |
 
-Accuracy uses DP-aware model selection: Laplace noise is added to validation accuracy to simulate private hyperparameter tuning.
+**5. Generate** — EDM/DDIM sampling to produce synthetic images, saved as `gen.npz`.
+
+**6. Evaluate** — Two metrics:
+
+- **Accuracy**: Train ResNet/WRN/ResNeXt classifiers on synthetic images, test on real data. Uses DP-aware model selection (Laplace noise on validation accuracy).
+- **FID**: Fréchet Inception Distance between real and synthetic InceptionV3 feature distributions.
 
 ## Project Structure
 
 ```
 DPImageBench/
-├── run.py                  # Entry point
-├── eval.py                 # Standalone evaluation
-├── install.sh              # Dependency installation
-├── configs/                # YAML configs per method/dataset
-│   ├── DPIS-SQ/            # DPIS-SQ params
-│   └── DPIS-MI/            # DPIS-MI params
-├── models/                 # Model implementations
-│   ├── DPIS_SQ/            # Semantic query (ResNet50 classifier)
-│   ├── DPIS_MI/            # Mode image query
-│   ├── DP_Diffusion/       # EDM diffusion model
-│   └── dpsgd_diffusion.py  # DP-SGD diffusion training
-├── data/                   # Data loading and preprocessing
-│   ├── dataset_loader.py   # Runtime data pipeline
-│   ├── preprocess_dataset.py
-│   └── SpecificImagenet.py # Semantic class filtering
-├── evaluation/             # Evaluator (accuracy + FID)
-├── opacus/                 # Modified Opacus with DPDDP
-├── utils/                  # Config parsing, distributed launcher
-├── scripts/                # Shell scripts for experiments
-│   └── demo_dpis.sh        # Quick demo
-├── plot/                   # Plotting scripts for figures
-└── exp/                    # Experiment outputs (generated)
+├── run.py                     # Training entry point
+├── install.sh                 # Dependency installation
+├── requirements.txt
+├── configs/
+│   ├── DPIS-SQ/               # 17 configs (all datasets × eps10/eps1)
+│   ├── DPIS-MI/               # 17 configs
+│   └── <baseline>/            # 5 baseline method config dirs
+├── models/
+│   ├── DPIS_SQ/               # Semantic query: ResNet50 classifier
+│   │   ├── resnet.py
+│   │   └── classifer_trainer.py
+│   ├── DP_Diffusion/          # EDM diffusion model
+│   │   ├── denoiser.py        # EDMDenoiser (preconditioning)
+│   │   ├── score_losses.py    # EDMLoss, VPSDELoss, etc.
+│   │   ├── samplers.py        # DDIM, EDM samplers
+│   │   ├── generate_base.py
+│   │   └── model/
+│   │       ├── ncsnpp.py      # Song U-Net backbone
+│   │       ├── layerspp.py
+│   │       └── ema.py
+│   ├── dpsgd_diffusion.py     # DP_Diffusion: pretrain + DP-SGD train + generate
+│   ├── model_loader.py        # Method → model dispatch
+│   ├── DP_MERF/               # Random Fourier Features utils
+│   ├── DP_GAN/                # DP-GAN utils
+│   ├── DP_LDM/                # Latent Diffusion peft utils
+│   ├── pretrained_models/     # Checkpoints
+│   └── synthesizer.py         # Base class
+├── data/
+│   ├── dataset_loader.py      # Runtime data pipeline
+│   ├── preprocess_dataset.py  # Raw → zip + fid_stats
+│   ├── process_imagenet.py    # ImageNet resize
+│   ├── SpecificImagenet.py    # Semantic class filtering + label remapping
+│   └── stylegan3/dataset.py   # Zip-based ImageFolderDataset
+├── evaluation/
+│   ├── evaluator.py           # Accuracy + FID evaluation
+│   ├── ema.py                 # Exponential Moving Average
+│   └── classifier/            # ResNet, WRN, ResNeXt
+├── opacus/                    # Modified Opacus (DPDDP, PrivacyEngine)
+├── utils/utils.py             # Config parsing, distributed launch
+├── scripts/
+│   └── demo_dpis.sh           # Quick demo for DPIS-SQ + DPIS-MI
+├── dataset/                   # Preprocessed datasets
+│   ├── mnist/                 # train_28.zip, test_28.zip, fid_stats_28.npz
+│   ├── fmnist/
+│   ├── cifar10/
+│   ├── cifar100/
+│   ├── eurosat/
+│   ├── celeba/
+│   ├── camelyon/
+│   └── imagenet/              # imagenet_32/ directory + imagenet_32.zip
+└── exp/                       # Experiment outputs
+
 ```
 
 ## Output
 
-Each run creates a directory under `exp/<method>/<dataset>_eps<epsilon><desc>-<timestamp>/`:
+Each run creates:
 
 ```
-exp/dpis-sq/mnist_28_eps10.0demo-2026-05-21-01-46-08/
-├── stdout.txt              # Full training log
-├── pretrain/
-│   ├── checkpoints/
-│   └── samples/
-├── train/
-│   ├── checkpoints/
-│   └── samples/
+exp/<method>/<dataset>_eps<eps><desc>-<timestamp>/
+├── stdout.txt                 # Full log with metrics
+├── pretrain/checkpoints/      # Pretrain snapshots
+├── train/checkpoints/         # DP-SGD training snapshots
 └── gen/
-    ├── gen.npz              # Synthetic images (x) and labels (y)
-    └── sample.png           # Sample grid
+    ├── gen.npz                 # Synthetic images + labels
+    └── sample.png              # Sample grid (8 per class)
 ```
 
-## Known Issues
+## Key Configuration Parameters
 
-### NCCL + NVIDIA RTX 5090 (Blackwell)
+### Training
 
-The built-in NCCL in PyTorch 2.7.1 has a compatibility issue with RTX 5090 GPUs. The workaround is using the `gloo` backend instead of `nccl` (already applied in `utils/utils.py`). Gloo uses CPU-side communication and is slower but functionally correct.
+| Parameter | Default (DPIS-SQ) | Description |
+|---|---|---|
+| `pretrain.n_epochs` | 3200 | Pretrain epochs on public data |
+| `pretrain.batch_size` | 1024 | Pretrain batch size |
+| `train.n_epochs` | 150 | DP-SGD epochs |
+| `train.batch_size` | 4096 | Logical batch size (must be large for DP) |
+| `train.max_physical_batch_size` | 8192 | Max physical batch before gradient step |
+| `train.n_splits` | 32 | Virtual micro-batch count |
+| `train.dp.max_grad_norm` | 0.001 | Per-sample gradient clipping norm |
+| `train.dp.epsilon` | 10.0 | Target privacy budget |
+| `gen.data_num` | 60000 | Synthetic images to generate |
 
-When NCCL is fixed in a future PyTorch release, revert `dist.init_process_group("gloo")` back to `dist.init_process_group("nccl")` in `utils/utils.py` for better multi-GPU performance.
+### Model
 
-## License
+| Parameter | MNIST | CIFAR-10 | Description |
+|---|---|---|---|
+| `model.network.image_size` | 28 | 32 | Input resolution |
+| `model.network.num_in_channels` | 1 | 3 | Input channels |
+| `model.network.ch_mult` | [2,2] | [2,2,2] | Channel multipliers per resolution |
+| `model.network.attn_resolutions` | [14] | [16] | Resolutions with attention |
+| `model.sampler.num_steps` | 50 | 50 | DDIM sampling steps |
 
-MIT License. See [LICENSE](LICENSE) for details.
+### Semantic Query (DPIS-SQ)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `public_data.name` | `imagenet` | Public dataset |
+| `public_data.n_classes` | 1000 | Public dataset classes |
+| `public_data.selective.ratio` | 0.05 | Fraction of public classes to select |
+| `public_data.selective.sigma` | 50 | Gaussian noise scale for DP |
+
